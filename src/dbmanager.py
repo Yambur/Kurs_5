@@ -1,41 +1,62 @@
 import psycopg2
 
-class DBManager():
 
+class DBManager():
+    """Подключаемся к БД"""
+
+    def __init__(self, params):
+        self.conn = psycopg2.connect(dbname='cw', **params)
+        self.cur = self.conn.cursor()
 
     def get_companies_and_vacancies_count(self):
-        """Список компаний и количество вакансий у каждой компании."""
-        query = "SELECT employer, COUNT(*) AS vacancies_count FROM vacancies GROUP BY employer"
-        with self.conn, self.conn.cursor() as cursor:
-            cursor.execute(query)
-            results = cursor.fetchall()
-        return results
+        """Список компаний и количество вакансий у каждой компании"""
+        self.cur.execute(
+            """SELECT company_name, open_vacancies 
+            FROM employers"""
+        )
+        result = self.cur.fetchall()
+        return result
 
     def get_all_vacancies(self):
-        """Возвращает все вакансии из базы данных."""
-        query = "SELECT * FROM vacancies"
-        with self.conn, self.conn.cursor() as cursor:
-            cursor.execute(query)
-            results = cursor.fetchall()
-        return results
+        """Список всех вакансий"""
+        self.cur.execute(
+            """
+            SELECT company_name, vacancy_name, salary_from, vacancy_url
+            FROM vacancies
+            JOIN employers USING (employer_id)
+            ORDER BY employers.company_name DESC            
+            """
+        )
+        result = self.cur.fetchall()
+        return result
 
     def get_avg_salary(self):
-        """Возвращает среднюю зарплату всех вакансий, где зарплата указана."""
-        query = "SELECT AVG(salary) AS avg_salary FROM vacancies WHERE salary IS NOT NULL"
-        with self.conn, self.conn.cursor() as cursor:
-            cursor.execute(query)
-            result = cursor.fetchone()
-        return round(result[0]) if result[0] else None
-    def get_vacancies_with_higher_salary(self):
-        """Возвращает все вакансии, у которых зарплата выше средней зарплаты."""
-        avg_salary = 62091
-        query = "SELECT * FROM vacancies WHERE salary > %s"
-        with self.conn, self.conn.cursor() as cursor:
-            cursor.execute(query, (avg_salary,))
-            results = cursor.fetchall()
-        return results
+        """Средняя зарплата по вакансиям"""
 
-    def get_vacancies_with_keyword(self, keyword, cur):
-        cur.execute(f'''SELECT * FROM vacancies WHERE vacancy_name LIKE "%{keyword}%"''')
-        result = cur.fetchall()
+        self.cur.execute(
+            """
+            SELECT AVG(salary_from) AS avg_salary FROM vacancies
+            """
+        )
+        result = self.cur.fetchall()
+        return result
+
+    def get_vacancies_with_higher_salary(self):
+        """Список всех вакансий, у которых зарплата выше средней по всем вакансиям"""
+        self.cur.execute(
+            """
+            SELECT * FROM vacancies
+            WHERE salary_from > (SELECT AVG(salary_from) FROM vacancies)
+            """
+        )
+        result = self.cur.fetchall()
+        return result
+
+    def get_vacancies_with_keyword(self, keyword):
+        """Список всех вакансий, в названии которых содержатся переданные в метод слова"""
+        self.cur.execute(
+            f'''SELECT * FROM vacancies 
+        WHERE vacancy_name LIKE '%{keyword}%' '''
+        )
+        result = self.cur.fetchall()
         return result
