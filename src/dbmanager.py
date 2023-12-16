@@ -32,7 +32,6 @@ class DBManager():
 
     def get_avg_salary(self):
         """Средняя зарплата по вакансиям"""
-
         self.cur.execute(
             """
             SELECT AVG(salary_from) AS avg_salary FROM vacancies
